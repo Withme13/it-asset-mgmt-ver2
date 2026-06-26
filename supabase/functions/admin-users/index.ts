@@ -24,10 +24,21 @@ Deno.serve(async (req) => {
     if (userErr || !userData.user) throw new Error("Unauthorized");
 
     const admin = createClient(supabaseUrl, serviceKey);
-    const { data: isAdmin } = await admin.rpc("has_role", {
-      _user_id: userData.user.id,
-      _role: "admin",
-    });
+    const [accountRole, legacyRole] = await Promise.all([
+      admin
+        .from("user_accounts")
+        .select("role")
+        .eq("auth_user_id", userData.user.id)
+        .eq("role", "admin")
+        .maybeSingle(),
+      admin
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userData.user.id)
+        .eq("role", "admin")
+        .maybeSingle(),
+    ]);
+    const isAdmin = !!accountRole.data || !!legacyRole.data;
     if (!isAdmin) throw new Error("Forbidden: admin only");
 
     const body = await req.json().catch(() => ({}));
@@ -40,14 +51,23 @@ Deno.serve(async (req) => {
         .from("profiles")
         .select("user_id, full_name")
         .in("user_id", ids);
-      const { data: roles } = await admin.from("user_roles").select("user_id, role").in("user_id", ids);
-      const result = users.users.map((u) => ({
-        id: u.id,
-        email: u.email,
-        created_at: u.created_at,
-        full_name: profiles?.find((p) => p.user_id === u.id)?.full_name ?? "",
-        role: roles?.find((r) => r.user_id === u.id)?.role ?? "user",
-      }));
+      const { data: accounts } = await admin
+        .from("user_accounts")
+        .select("auth_user_id, role")
+        .in("auth_user_id", ids);
+      const { data: legacyRoles } = await admin.from("user_roles").select("user_id, role").in("user_id", ids);
+      const result = users.users.map((u) => {
+        const accountRole = accounts?.find((a) => a.auth_user_id === u.id)?.role;
+        const legacyRole = legacyRoles?.find((r) => r.user_id === u.id)?.role;
+        const role = accountRole || legacyRole || "user";
+        return {
+          id: u.id,
+          email: u.email,
+          created_at: u.created_at,
+          full_name: profiles?.find((p) => p.user_id === u.id)?.full_name ?? "",
+          role,
+        };
+      });
       return json({ users: result });
     }
 
@@ -60,6 +80,14 @@ Deno.serve(async (req) => {
         user_metadata: { full_name: full_name || "" },
       });
       if (error) throw error;
+      if (role) {
+        await admin.from("user_accounts").upsert({
+          auth_user_id: data.user.id,
+          email: data.user.email,
+          full_name: full_name || "",
+          role,
+        }, { onConflict: "auth_user_id" });
+      }
       if (role && role !== "user") {
         await admin.from("user_roles").upsert({ user_id: data.user.id, role });
       }
@@ -79,6 +107,12 @@ Deno.serve(async (req) => {
         await admin.from("profiles").update({ full_name }).eq("user_id", user_id);
       }
       if (role) {
+        await admin.from("user_accounts").upsert({
+          auth_user_id: user_id,
+          email: undefined,
+          full_name: undefined,
+          role,
+        }, { onConflict: "auth_user_id" });
         await admin.from("user_roles").delete().eq("user_id", user_id);
         await admin.from("user_roles").insert({ user_id, role });
       }

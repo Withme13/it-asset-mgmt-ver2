@@ -15,14 +15,22 @@ export function useIsAdmin() {
       return;
     }
     (async () => {
-      const { data } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("role", "admin")
-        .maybeSingle();
+      const [legacyRole, accountRole] = await Promise.all([
+        supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .eq("role", "admin")
+          .maybeSingle(),
+        supabase
+          .from("user_accounts")
+          .select("role")
+          .eq("auth_user_id", user.id)
+          .eq("role", "admin")
+          .maybeSingle(),
+      ]);
       if (!cancelled) {
-        setIsAdmin(!!data);
+        setIsAdmin(!!legacyRole.data || !!accountRole.data);
         setLoading(false);
       }
     })();
