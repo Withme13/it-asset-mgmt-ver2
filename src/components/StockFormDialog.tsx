@@ -18,6 +18,7 @@ export type Stock = {
 };
 
 const empty: Stock = { purchase_date: null, category: "", type: "", user_name: "", given_date: null };
+const categoryOptions = ["Keyboard", "Converter", "Converter VGA to HDMI", "Mouse", "Flashdisk"];
 
 export function StockFormDialog({
   open, onOpenChange, stock, onSaved,
@@ -64,15 +65,31 @@ export function StockFormDialog({
     }
   };
 
-  const F = ({ k, label, type = "text" }: { k: keyof Stock; label: string; type?: string }) => (
+  const handleFieldChange = (key: keyof Stock, value: string) => {
+    setData((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
+  const F = ({ k, label, type = "text", options }: { k: keyof Stock; label: string; type?: string; options?: string[] }) => (
     <div className="space-y-1">
-      <Label className="text-[12px]">{label}</Label>
+      <Label htmlFor={k} className="text-[12px]">{label}</Label>
       <Input
+        id={k}
         type={type}
+        list={options && k === "category" ? "stock-category-options" : undefined}
         value={(data[k] as any) ?? ""}
-        onChange={(e) => setData({ ...data, [k]: e.target.value || (type === "date" ? null : "") } as any)}
+        onChange={(e) => handleFieldChange(k, e.target.value)}
         className="h-9 text-[13px]"
       />
+      {options && k === "category" && (
+        <datalist id="stock-category-options">
+          {options.map((option) => (
+            <option key={option} value={option} />
+          ))}
+        </datalist>
+      )}
     </div>
   );
 
@@ -84,7 +101,7 @@ export function StockFormDialog({
         </DialogHeader>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 py-2">
           <F k="purchase_date" label="Tanggal Pembelian" type="date" />
-          <F k="category" label="Category" />
+          <F k="category" label="Category" options={categoryOptions} />
           <F k="type" label="Type" />
           <F k="user_name" label="User" />
           <F k="given_date" label="Tanggal Diberikan" type="date" />
