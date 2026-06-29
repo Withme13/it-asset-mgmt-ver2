@@ -173,7 +173,7 @@ export default function Bills() {
               {MONTHS.map((m, idx) => (
                 <div key={m} className="space-y-1">
                   <Label className="text-[12px]">{MONTH_LABELS[idx]}</Label>
-                  <Input type="number" className="h-9 text-[13px]" value={form[m]} onChange={(e) => setForm({ ...form, [m]: Number(e.target.value) })} />
+                  <Input type="number" className="h-9 text-[13px]" placeholder="Rp 0,00" value={form[m] || ""} onChange={(e) => setForm({ ...form, [m]: Number(e.target.value) || 0 })} />
                 </div>
               ))}
             </div>
