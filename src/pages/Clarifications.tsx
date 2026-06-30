@@ -149,10 +149,10 @@ export default function Clarifications() {
     "Memory Computer (GB)": c.memory_gb ?? "-",
     "Operating System": c.operating_system || "-",
     Device: c.device || "-",
-    "Pengecekan Fisik": c.cek_fisik || "-",
-    "Pengecekan Performance": c.cek_performance || "-",
-    "Pengecekan Antivirus": c.cek_antivirus || "-",
-    "Pengecekan Bitlocker": c.cek_bitlocker || "-",
+    Fisik: c.cek_fisik || "-",
+    Performance: c.cek_performance || "-",
+    Antivirus: c.cek_antivirus || "-",
+    Bitlocker: c.cek_bitlocker || "-",
     "Tanggal Cek": c.tanggal_cek || "-",
     Critical: c.critical || "-",
     "Non Critical": c.non_critical || "-",
@@ -164,31 +164,37 @@ export default function Clarifications() {
     Keterangan: c.keterangan || "-",
   }));
 
+  // NOTE: `width` here is used as a relative weight by export-pdf.ts (auto-scaled
+  // to fill the page) AND as the column width in "characters" (wch) by
+  // export-excel.ts. Both interpretations work fine with these values since
+  // they're already roughly proportional to how much text each column holds.
   const exportColumns = [
-    { header: "No", accessor: "No" as const, align: "right", width: 20 },
-    { header: "Label", accessor: "Label" as const, width: 70 },
-    { header: "Computer Name", accessor: "Computer Name" as const, width: 70 },
-    { header: "Division", accessor: "Division" as const, width: 50 },
-    { header: "User", accessor: "User" as const, width: 50 },
-    { header: "Lokasi", accessor: "Lokasi" as const, width: 35 },
-    { header: "PC Type", accessor: "PC Type" as const, width: 35 },
-    { header: "SN PC", accessor: "SN PC" as const, width: 55 },
-    { header: "Memory Computer (GB)", accessor: "Memory Computer (GB)" as const, width: 30, align: "right" },
-    { header: "Operating System", accessor: "Operating System" as const, width: 50 },
-    { header: "Device", accessor: "Device" as const, width: 35 },
-    { header: "Pengecekan Fisik", accessor: "Pengecekan Fisik" as const, width: 35 },
-    { header: "Pengecekan Performance", accessor: "Pengecekan Performance" as const, width: 35 },
-    { header: "Pengecekan Antivirus", accessor: "Pengecekan Antivirus" as const, width: 35 },
-    { header: "Pengecekan Bitlocker", accessor: "Pengecekan Bitlocker" as const, width: 35 },
-    { header: "Tanggal Cek", accessor: "Tanggal Cek" as const, width: 45 },
-    { header: "Critical", accessor: "Critical" as const, width: 30 },
-    { header: "Non Critical", accessor: "Non Critical" as const, width: 30 },
-    { header: "Confidentiality", accessor: "Confidentiality" as const, width: 30 },
-    { header: "Integrity", accessor: "Integrity" as const, width: 30 },
-    { header: "Availability", accessor: "Availability" as const, width: 30 },
-    { header: "Lokasi Fisik", accessor: "Lokasi Fisik" as const, width: 40 },
-    { header: "Status", accessor: "Status" as const, width: 30 },
-    { header: "Keterangan", accessor: "Keterangan" as const, width: 70 },
+    { header: "No", accessor: "No" as const, align: "right" as const, width: 6 },
+    { header: "Label", accessor: "Label" as const, width: 22 },
+    { header: "Computer Name", accessor: "Computer Name" as const, width: 20 },
+    { header: "Division", accessor: "Division" as const, width: 16 },
+    { header: "User", accessor: "User" as const, width: 16 },
+    { header: "Lokasi", accessor: "Lokasi" as const, width: 13 },
+    { header: "PC Type", accessor: "PC Type" as const, width: 20 },
+    { header: "SN PC", accessor: "SN PC" as const, width: 18 },
+    { header: "Memory (GB)", accessor: "Memory Computer (GB)" as const, width: 10, align: "right" as const },
+    { header: "Operating System", accessor: "Operating System" as const, width: 18 },
+    { header: "Device", accessor: "Device" as const, width: 11 },
+    // ---- Pengecekan group ----
+    { header: "Fisik", accessor: "Fisik" as const, width: 9, align: "center" as const, group: "Pengecekan" },
+    { header: "Performance", accessor: "Performance" as const, width: 11, align: "center" as const, group: "Pengecekan" },
+    { header: "Antivirus", accessor: "Antivirus" as const, width: 10, align: "center" as const, group: "Pengecekan" },
+    { header: "Bitlocker", accessor: "Bitlocker" as const, width: 10, align: "center" as const, group: "Pengecekan" },
+    { header: "Tanggal Cek", accessor: "Tanggal Cek" as const, width: 13, align: "center" as const },
+    { header: "Critical", accessor: "Critical" as const, width: 9, align: "center" as const },
+    { header: "Non Critical", accessor: "Non Critical" as const, width: 10, align: "center" as const },
+    // ---- Kategori CIA group ----
+    { header: "Confidentiality", accessor: "Confidentiality" as const, width: 13, align: "center" as const, group: "Kategori CIA" },
+    { header: "Integrity", accessor: "Integrity" as const, width: 11, align: "center" as const, group: "Kategori CIA" },
+    { header: "Availability", accessor: "Availability" as const, width: 12, align: "center" as const, group: "Kategori CIA" },
+    { header: "Lokasi Fisik", accessor: "Lokasi Fisik" as const, width: 13 },
+    { header: "Status", accessor: "Status" as const, width: 11, align: "center" as const },
+    { header: "Keterangan", accessor: "Keterangan" as const, width: 22 },
   ];
 
   return (
@@ -200,7 +206,7 @@ export default function Clarifications() {
             <p className="text-[13px] text-muted-foreground">Pengecekan dan klasifikasi keamanan aset</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => exportToExcel(exportRows, "klarifikasi-asset", "Clarifications")} className="h-9" disabled={!exportRows.length}>
+            <Button variant="outline" onClick={() => exportToExcel(exportRows, exportColumns, "klarifikasi-asset", "Clarifications", "Klarifikasi Asset Report")} className="h-9" disabled={!exportRows.length}>
               <Download className="h-4 w-4 mr-1.5" /> Export Excel
             </Button>
             <Button variant="outline" onClick={() => exportToPDF(exportRows, exportColumns, "klarifikasi-asset", "Klarifikasi Asset Report")} className="h-9" disabled={!exportRows.length}>
