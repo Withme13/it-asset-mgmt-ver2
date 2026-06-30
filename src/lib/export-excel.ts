@@ -190,28 +190,7 @@ export function exportToExcel<T extends Record<string, any>>(
     }
   }
 
-  // ---- Legend rows (status color key) below the table ----
-  const legendStartRow = aoa.length + 1;
-  const legendLabelRef = XLSX.utils.encode_cell({ r: legendStartRow, c: 0 });
-  ws[legendLabelRef] = { t: "s", v: "Keterangan Status:", s: { font: { bold: true, sz: 10 } } };
-
-  const legendEntries = [...Object.entries(STATUS_COLORS), ["OK / Lainnya", "FFFFFFFF"] as const];
-  legendEntries.forEach(([label, color], idx) => {
-    const row = legendStartRow + 1 + idx;
-    const swatchRef = XLSX.utils.encode_cell({ r: row, c: 0 });
-    const labelRef = XLSX.utils.encode_cell({ r: row, c: 1 });
-    ws[swatchRef] = {
-      t: "s",
-      v: "",
-      s: {
-        fill: { fgColor: { rgb: color } },
-        border: { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder },
-      },
-    };
-    ws[labelRef] = { t: "s", v: label, s: { font: { sz: 10 } } };
-  });
-
-  const totalRows = legendStartRow + 1 + legendEntries.length;
+  const totalRows = aoa.length - 1;
   ws["!ref"] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: totalRows, c: numCols - 1 } });
 
   const wb = XLSX.utils.book_new();
