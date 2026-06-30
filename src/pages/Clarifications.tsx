@@ -137,6 +137,60 @@ export default function Clarifications() {
     return !s || i.computer_name?.toLowerCase().includes(s) || i.user_name?.toLowerCase().includes(s) || i.sn_pc?.toLowerCase().includes(s) || i.label?.toLowerCase().includes(s);
   });
 
+  const exportRows = filtered.map((c, index) => ({
+    No: index + 1,
+    Label: c.label || "-",
+    "Computer Name": c.computer_name || "-",
+    Division: c.division || "-",
+    User: c.user_name || "-",
+    Lokasi: c.lokasi || "-",
+    "PC Type": c.pc_type || "-",
+    "SN PC": c.sn_pc || "-",
+    "Memory Computer (GB)": c.memory_gb ?? "-",
+    "Operating System": c.operating_system || "-",
+    Device: c.device || "-",
+    "Pengecekan Fisik": c.cek_fisik || "-",
+    "Pengecekan Performance": c.cek_performance || "-",
+    "Pengecekan Antivirus": c.cek_antivirus || "-",
+    "Pengecekan Bitlocker": c.cek_bitlocker || "-",
+    "Tanggal Cek": c.tanggal_cek || "-",
+    Critical: c.critical || "-",
+    "Non Critical": c.non_critical || "-",
+    Confidentiality: c.cia_confidentiality || "-",
+    Integrity: c.cia_integrity || "-",
+    Availability: c.cia_availability || "-",
+    "Lokasi Fisik": c.lokasi_fisik || "-",
+    Status: c.status || "-",
+    Keterangan: c.keterangan || "-",
+  }));
+
+  const exportColumns = [
+    { header: "No", accessor: "No" as const, align: "right", width: 20 },
+    { header: "Label", accessor: "Label" as const, width: 70 },
+    { header: "Computer Name", accessor: "Computer Name" as const, width: 70 },
+    { header: "Division", accessor: "Division" as const, width: 50 },
+    { header: "User", accessor: "User" as const, width: 50 },
+    { header: "Lokasi", accessor: "Lokasi" as const, width: 35 },
+    { header: "PC Type", accessor: "PC Type" as const, width: 35 },
+    { header: "SN PC", accessor: "SN PC" as const, width: 55 },
+    { header: "Memory Computer (GB)", accessor: "Memory Computer (GB)" as const, width: 30, align: "right" },
+    { header: "Operating System", accessor: "Operating System" as const, width: 50 },
+    { header: "Device", accessor: "Device" as const, width: 35 },
+    { header: "Pengecekan Fisik", accessor: "Pengecekan Fisik" as const, width: 35 },
+    { header: "Pengecekan Performance", accessor: "Pengecekan Performance" as const, width: 35 },
+    { header: "Pengecekan Antivirus", accessor: "Pengecekan Antivirus" as const, width: 35 },
+    { header: "Pengecekan Bitlocker", accessor: "Pengecekan Bitlocker" as const, width: 35 },
+    { header: "Tanggal Cek", accessor: "Tanggal Cek" as const, width: 45 },
+    { header: "Critical", accessor: "Critical" as const, width: 30 },
+    { header: "Non Critical", accessor: "Non Critical" as const, width: 30 },
+    { header: "Confidentiality", accessor: "Confidentiality" as const, width: 30 },
+    { header: "Integrity", accessor: "Integrity" as const, width: 30 },
+    { header: "Availability", accessor: "Availability" as const, width: 30 },
+    { header: "Lokasi Fisik", accessor: "Lokasi Fisik" as const, width: 40 },
+    { header: "Status", accessor: "Status" as const, width: 30 },
+    { header: "Keterangan", accessor: "Keterangan" as const, width: 70 },
+  ];
+
   return (
     <AppLayout>
       <div className="p-4 md:p-6 space-y-4">
@@ -146,28 +200,10 @@ export default function Clarifications() {
             <p className="text-[13px] text-muted-foreground">Pengecekan dan klasifikasi keamanan aset</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => exportToExcel(items, "klarifikasi-asset", "Clarifications")} className="h-9" disabled={!items.length}>
+            <Button variant="outline" onClick={() => exportToExcel(exportRows, "klarifikasi-asset", "Clarifications")} className="h-9" disabled={!exportRows.length}>
               <Download className="h-4 w-4 mr-1.5" /> Export Excel
             </Button>
-            <Button variant="outline" onClick={() => exportToPDF(filtered, [
-              { header: "No", accessor: (r: any) => filtered.indexOf(r) + 1, align: "right" },
-              { header: "Label", accessor: "label" },
-              { header: "Computer", accessor: "computer_name" },
-              { header: "Division", accessor: "division" },
-              { header: "User", accessor: "user_name" },
-              { header: "Lokasi", accessor: "lokasi" },
-              { header: "SN PC", accessor: "sn_pc" },
-              { header: "OS", accessor: "operating_system" },
-              { header: "Fisik", accessor: "cek_fisik" },
-              { header: "Perf", accessor: "cek_performance" },
-              { header: "AV", accessor: "cek_antivirus" },
-              { header: "BitLk", accessor: "cek_bitlocker" },
-              { header: "Tgl Cek", accessor: "tanggal_cek" },
-              { header: "Conf", accessor: "cia_confidentiality" },
-              { header: "Integ", accessor: "cia_integrity" },
-              { header: "Avail", accessor: "cia_availability" },
-              { header: "Status", accessor: "status" },
-            ], "klarifikasi-asset", "Klarifikasi Asset Report")} className="h-9" disabled={!filtered.length}>
+            <Button variant="outline" onClick={() => exportToPDF(exportRows, exportColumns, "klarifikasi-asset", "Klarifikasi Asset Report")} className="h-9" disabled={!exportRows.length}>
               <Download className="h-4 w-4 mr-1.5" /> Export PDF
             </Button>
             <Button onClick={() => { setEditing(null); setOpen(true); }} className="h-9">

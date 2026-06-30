@@ -5,6 +5,7 @@ export type PdfColumn<T> = {
   header: string;
   accessor: keyof T | ((row: T) => any);
   align?: "left" | "right" | "center";
+  width?: number;
 };
 
 export function exportToPDF<T extends Record<string, any>>(
@@ -16,6 +17,7 @@ export function exportToPDF<T extends Record<string, any>>(
 ) {
   const doc = new jsPDF({ orientation, unit: "pt", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
   const stamp = new Date().toLocaleString("id-ID");
 
   doc.setFontSize(14);
@@ -41,18 +43,35 @@ export function exportToPDF<T extends Record<string, any>>(
     body,
     startY: 64,
     margin: { left: 24, right: 24 },
-    styles: { fontSize: 8, cellPadding: 4, overflow: "linebreak", valign: "middle" },
-    headStyles: { fillColor: [30, 41, 59], textColor: 255, fontStyle: "bold", fontSize: 8.5 },
+    styles: {
+      fontSize: 7,
+      cellPadding: 3,
+      overflow: "linebreak",
+      valign: "middle",
+      textColor: 40,
+    },
+    headStyles: {
+      fillColor: [30, 41, 59],
+      textColor: 255,
+      fontStyle: "bold",
+      fontSize: 8,
+      halign: "center",
+    },
     alternateRowStyles: { fillColor: [245, 247, 250] },
     columnStyles: columns.reduce((acc, c, i) => {
-      if (c.align) acc[i] = { halign: c.align };
+      const style: Record<string, any> = {};
+      if (c.align) style.halign = c.align;
+      if (c.width) style.cellWidth = c.width;
+      if (Object.keys(style).length) acc[i] = style;
       return acc;
     }, {} as Record<number, any>),
-    didDrawPage: (data) => {
+    tableWidth: "auto",
+    theme: "striped",
+    didDrawPage: () => {
       const str = `Page ${doc.getNumberOfPages()}`;
       doc.setFontSize(8);
       doc.setTextColor(120);
-      doc.text(str, pageWidth - 40, doc.internal.pageSize.getHeight() - 16, { align: "right" });
+      doc.text(str, pageWidth - 40, pageHeight - 16, { align: "right" });
     },
   });
 

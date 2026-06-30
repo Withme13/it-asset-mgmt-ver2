@@ -8,10 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SeverityBadge } from "@/components/SeverityBadge";
 import { StatusBadge } from "@/components/StatusBadge";
-import { Bug, Plus, Search, LayoutGrid, List, Loader2 } from "lucide-react";
+import { Bug, Plus, Search, LayoutGrid, List, Loader2, Download } from "lucide-react";
 import type { Tables, Enums } from "@/integrations/supabase/types";
 import { Constants } from "@/integrations/supabase/types";
 import { formatDistanceToNow } from "date-fns";
+import { exportToExcel } from "@/lib/export-excel";
+import { exportToPDF } from "@/lib/export-pdf";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell } from "recharts";
 import { NeonPatternDefs } from "@/components/NeonPatternDefs";
 import { useNeonCharts } from "@/hooks/use-neon-charts";
@@ -100,6 +102,22 @@ export default function Dashboard() {
     Object.entries(SEVERITY_LABELS).map(([k, label]) => [k, { label, color: SEVERITY_COLORS[k] }])
   );
 
+  const exportRows = filtered.map((bug) => ({
+    ID: bug.tracking_id,
+    Title: bug.title,
+    Status: STATUS_LABELS[bug.status] ?? bug.status,
+    Criticality: SEVERITY_LABELS[bug.severity] ?? bug.severity,
+    Added: new Date(bug.created_at).toLocaleString("id-ID", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }),
+  }));
+
+  const exportColumns = [
+    { header: "ID", accessor: "ID" as const },
+    { header: "Title", accessor: "Title" as const },
+    { header: "Status", accessor: "Status" as const },
+    { header: "Criticality", accessor: "Criticality" as const },
+    { header: "Added", accessor: "Added" as const },
+  ];
+
   if (loading) {
     return (
       <AppLayout>
@@ -175,15 +193,23 @@ export default function Dashboard() {
             </div>
 
             {/* Search & View Toggle */}
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1 max-w-sm">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                <Input
-                  placeholder="Search assets..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-8 h-8 text-[13px] bg-transparent"
-                />
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <div className="relative flex-1 max-w-sm">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Search assets..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="pl-8 h-8 text-[13px] bg-transparent"
+                  />
+                </div>
+                <Button variant="outline" size="sm" onClick={() => exportToExcel(exportRows, "dashboard-assets", "Dashboard")} disabled={!exportRows.length}>
+                  <Download className="h-3.5 w-3.5" /> Excel
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => exportToPDF(exportRows, exportColumns, "dashboard-assets", "Dashboard Assets")} disabled={!exportRows.length}>
+                  <Download className="h-3.5 w-3.5" /> PDF
+                </Button>
               </div>
               <div className="flex items-center border rounded-md">
                 <Button variant={view === "table" ? "secondary" : "ghost"} size="sm" onClick={() => setView("table")} className="h-8 w-8 p-0">
