@@ -45,85 +45,115 @@ Deno.serve(async (req) => {
     const action = body.action as string;
 
     if (action === "list") {
-      const { data: users } = await admin.auth.admin.listUsers({ perPage: 1000 });
-      const ids = users.users.map((u) => u.id);
-      const { data: profiles } = await admin
-        .from("profiles")
-        .select("user_id, full_name")
-        .in("user_id", ids);
-      const { data: accounts } = await admin
-        .from("user_accounts")
-        .select("auth_user_id, role")
-        .in("auth_user_id", ids);
-      const { data: legacyRoles } = await admin.from("user_roles").select("user_id, role").in("user_id", ids);
-      const result = users.users.map((u) => {
-        const accountRole = accounts?.find((a) => a.auth_user_id === u.id)?.role;
-        const legacyRole = legacyRoles?.find((r) => r.user_id === u.id)?.role;
-        const role = accountRole || legacyRole || "user";
-        return {
-          id: u.id,
-          email: u.email,
-          created_at: u.created_at,
-          full_name: profiles?.find((p) => p.user_id === u.id)?.full_name ?? "",
-          role,
-        };
-      });
-      return json({ users: result });
+      try {
+        const { data: users, error: usersErr } = await admin.auth.admin.listUsers({ perPage: 1000 });
+        if (usersErr) throw usersErr;
+        if (!users?.users) throw new Error("No users returned from auth");
+
+        const ids = users.users.map((u) => u.id);
+        if (ids.length === 0) return json({ users: [] });
+
+        const [{ data: profiles }, { data: accounts }, { data: legacyRoles }] = await Promise.all([
+          admin.from("profiles").select("user_id, full_name").in("user_id", ids),
+          admin.from("user_accounts").select("auth_user_id, role").in("auth_user_id", ids),
+          admin.from("user_roles").select("user_id, role").in("user_id", ids),
+        ]);
+
+        const result = users.users.map((u) => {
+          const accountRole = accounts?.find((a) => a.auth_user_id === u.id)?.role;
+          const legacyRole = legacyRoles?.find((r) => r.user_id === u.id)?.role;
+          const role = accountRole || legacyRole || "user";
+          return {
+            id: u.id,
+            email: u.email,
+            created_at: u.created_at,
+            full_name: profiles?.find((p) => p.user_id === u.id)?.full_name ?? "",
+            role,
+          };
+        });
+        return json({ users: result });
+      } catch (e) {
+        throw new Error(`Failed to list users: ${(e as Error).message}`);
+      }
     }
 
     if (action === "create") {
       const { email, password, full_name, role } = body;
-      const { data, error } = await admin.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: true,
-        user_metadata: { full_name: full_name || "" },
-      });
-      if (error) throw error;
-      if (role) {
-        await admin.from("user_accounts").upsert({
-          auth_user_id: data.user.id,
-          email: data.user.email,
+      if (!email || !password) throw new Error("Email and password are required");
+      
+      try {
+        const { data, error } = await admin.auth.admin.createUser({
+          email,
+          password,
+          email_confirm: true,
+          user_metadata: { full_name: full_name || "" },
+        });
+        if (error) throw error;
+
+        // Create profile
+        await admin.from("profiles").upsert({
+          user_id: data.user.id,
           full_name: full_name || "",
-          role,
-        }, { onConflict: "auth_user_id" });
+        }, { onConflict: "user_id" });
+
+        // Set role
+        if (role && role !== "user") {
+          await admin.from("user_accounts").upsert({
+            auth_user_id: data.user.id,
+            email: data.user.email,
+            full_name: full_name || "",
+            role,
+          }, { onConflict: "auth_user_id" });
+          await admin.from("user_roles").upsert({ user_id: data.user.id, role });
+        }
+        return json({ user: data.user });
+      } catch (e) {
+        throw new Error(`Failed to create user: ${(e as Error).message}`);
       }
-      if (role && role !== "user") {
-        await admin.from("user_roles").upsert({ user_id: data.user.id, role });
-      }
-      return json({ user: data.user });
     }
 
     if (action === "update") {
       const { user_id, email, password, full_name, role } = body;
-      if (email || password) {
-        const upd: Record<string, unknown> = {};
-        if (email) upd.email = email;
-        if (password) upd.password = password;
-        const { error } = await admin.auth.admin.updateUserById(user_id, upd);
-        if (error) throw error;
+      if (!user_id) throw new Error("user_id is required");
+
+      try {
+        if (email || password) {
+          const upd: Record<string, unknown> = {};
+          if (email) upd.email = email;
+          if (password) upd.password = password;
+          const { error } = await admin.auth.admin.updateUserById(user_id, upd);
+          if (error) throw error;
+        }
+        if (typeof full_name === "string") {
+          await admin.from("profiles").upsert({ user_id, full_name }, { onConflict: "user_id" });
+        }
+        if (role) {
+          await admin.from("user_accounts").upsert({
+            auth_user_id: user_id,
+            email: undefined,
+            full_name: undefined,
+            role,
+          }, { onConflict: "auth_user_id" });
+          await admin.from("user_roles").delete().eq("user_id", user_id);
+          await admin.from("user_roles").insert({ user_id, role });
+        }
+        return json({ ok: true });
+      } catch (e) {
+        throw new Error(`Failed to update user: ${(e as Error).message}`);
       }
-      if (typeof full_name === "string") {
-        await admin.from("profiles").update({ full_name }).eq("user_id", user_id);
-      }
-      if (role) {
-        await admin.from("user_accounts").upsert({
-          auth_user_id: user_id,
-          email: undefined,
-          full_name: undefined,
-          role,
-        }, { onConflict: "auth_user_id" });
-        await admin.from("user_roles").delete().eq("user_id", user_id);
-        await admin.from("user_roles").insert({ user_id, role });
-      }
-      return json({ ok: true });
     }
 
     if (action === "delete") {
       const { user_id } = body;
-      const { error } = await admin.auth.admin.deleteUser(user_id);
-      if (error) throw error;
-      return json({ ok: true });
+      if (!user_id) throw new Error("user_id is required");
+
+      try {
+        const { error } = await admin.auth.admin.deleteUser(user_id);
+        if (error) throw error;
+        return json({ ok: true });
+      } catch (e) {
+        throw new Error(`Failed to delete user: ${(e as Error).message}`);
+      }
     }
 
     throw new Error("Unknown action");

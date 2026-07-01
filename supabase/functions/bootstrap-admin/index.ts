@@ -33,10 +33,27 @@ Deno.serve(async (req) => {
       user = data.user!;
     }
 
-    // Ensure admin role
+    // Ensure admin role in both tables
     await admin
       .from("user_roles")
       .upsert({ user_id: user.id, role: "admin" }, { onConflict: "user_id,role" });
+
+    await admin
+      .from("user_accounts")
+      .upsert({
+        auth_user_id: user.id,
+        email: user.email,
+        full_name: "Administrator",
+        role: "admin",
+      }, { onConflict: "auth_user_id" });
+
+    // Ensure profile exists
+    await admin
+      .from("profiles")
+      .upsert({
+        user_id: user.id,
+        full_name: "Administrator",
+      }, { onConflict: "user_id" });
 
     return new Response(
       JSON.stringify({ ok: true, email: ADMIN_EMAIL }),
