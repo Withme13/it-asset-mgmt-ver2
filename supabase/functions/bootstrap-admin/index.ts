@@ -6,13 +6,18 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const ADMIN_EMAIL = "administrator@assethub.local";
-const ADMIN_PASSWORD = "Helloworld123!!";
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    // Read admin credentials from environment variables
+    const ADMIN_EMAIL = Deno.env.get("ADMIN_EMAIL");
+    const ADMIN_PASSWORD = Deno.env.get("ADMIN_PASSWORD");
+
+    if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+      throw new Error("ADMIN_EMAIL and ADMIN_PASSWORD environment variables must be set");
+    }
+
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!

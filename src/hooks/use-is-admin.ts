@@ -10,11 +10,13 @@ export function useIsAdmin() {
   useEffect(() => {
     let cancelled = false;
     if (!user) {
+      console.log("useIsAdmin: no user");
       setIsAdmin(false);
       setLoading(false);
       return;
     }
     (async () => {
+      console.log("useIsAdmin: checking admin for user", user.id);
       const [legacyRole, accountRole] = await Promise.all([
         supabase
           .from("user_roles")
@@ -29,8 +31,11 @@ export function useIsAdmin() {
           .eq("role", "admin")
           .maybeSingle(),
       ]);
+      console.log("useIsAdmin: legacyRole.data =", legacyRole.data, "accountRole.data =", accountRole.data);
       if (!cancelled) {
-        setIsAdmin(!!legacyRole.data || !!accountRole.data);
+        const adminStatus = !!legacyRole.data || !!accountRole.data;
+        console.log("useIsAdmin: isAdmin =", adminStatus);
+        setIsAdmin(adminStatus);
         setLoading(false);
       }
     })();

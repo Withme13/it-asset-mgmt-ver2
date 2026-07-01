@@ -13,11 +13,16 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Missing Authorization");
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+
+    if (!supabaseUrl || !serviceKey || !anonKey) {
+      throw new Error("Missing Supabase environment variables");
+    }
 
     // Verify caller
-    const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_PUBLISHABLE_KEY")!, {
+    const userClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: userData, error: userErr } = await userClient.auth.getUser();
@@ -148,11 +153,35 @@ Deno.serve(async (req) => {
       if (!user_id) throw new Error("user_id is required");
 
       try {
+        console.log(`Starting delete for user: ${user_id}`);
+        
+        // First, delete related records to handle foreign key constraints
+        // Delete from profiles
+        const { error: profileErr } = await admin.from("profiles").delete().eq("user_id", user_id);
+        if (profileErr) console.warn(`Warning deleting profile: ${profileErr.message}`);
+        
+        // Delete from user_roles
+        const { error: roleErr } = await admin.from("user_roles").delete().eq("user_id", user_id);
+        if (roleErr) console.warn(`Warning deleting user_roles: ${roleErr.message}`);
+        
+        // Delete from user_accounts
+        const { error: accountErr } = await admin.from("user_accounts").delete().eq("auth_user_id", user_id);
+        if (accountErr) console.warn(`Warning deleting user_accounts: ${accountErr.message}`);
+        
+        // Finally, delete from auth.users
+        console.log(`Deleting auth user: ${user_id}`);
         const { error } = await admin.auth.admin.deleteUser(user_id);
-        if (error) throw error;
+        if (error) {
+          console.error(`Auth delete failed: ${error.message}`);
+          throw error;
+        }
+        
+        console.log(`Successfully deleted user: ${user_id}`);
         return json({ ok: true });
       } catch (e) {
-        throw new Error(`Failed to delete user: ${(e as Error).message}`);
+        const errorMsg = `Failed to delete user: ${(e as Error).message}`;
+        console.error(errorMsg);
+        throw new Error(errorMsg);
       }
     }
 

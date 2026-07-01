@@ -35,6 +35,9 @@ export default function Users() {
   const [editing, setEditing] = useState<UserRow | null>(null);
   const [form, setForm] = useState({ email: "", password: "", full_name: "", role: "user" });
   const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  console.log("Users page - isAdmin:", isAdmin, "roleLoading:", roleLoading);
 
   const call = async (action: string, payload: Record<string, unknown> = {}) => {
     const { data, error } = await supabase.functions.invoke("admin-users", {
@@ -47,11 +50,16 @@ export default function Users() {
 
   const load = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const data = await call("list");
+      console.log("Users loaded:", data);
       setUsers(data.users ?? []);
     } catch (e) {
-      toast({ title: "Failed to load users", description: (e as Error).message, variant: "destructive" });
+      const errorMsg = (e as Error).message;
+      console.error("Failed to load users:", errorMsg);
+      setLoadError(errorMsg);
+      toast({ title: "Failed to load users", description: errorMsg, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -190,8 +198,14 @@ export default function Users() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading ? (
+            {roleLoading ? (
+              <TableRow><TableCell colSpan={4} className="text-center py-8"><Loader2 className="h-4 w-4 animate-spin inline" /> Checking admin status...</TableCell></TableRow>
+            ) : !isAdmin ? (
+              <TableRow><TableCell colSpan={4} className="text-center py-8 text-red-500">⚠️ Not admin - Cannot access user management</TableCell></TableRow>
+            ) : loading ? (
               <TableRow><TableCell colSpan={4} className="text-center py-8"><Loader2 className="h-4 w-4 animate-spin inline" /></TableCell></TableRow>
+            ) : loadError ? (
+              <TableRow><TableCell colSpan={4} className="text-center py-8 text-red-500">Error: {loadError}</TableCell></TableRow>
             ) : users.length === 0 ? (
               <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">No users</TableCell></TableRow>
             ) : users.map((u) => (
